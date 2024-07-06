@@ -12,3 +12,7 @@ My lazy ass helper
 | xxxConnst  | Function but receive input parameters not function                                      |
 | xxxSafe    | Function will do most  the most reasonable compromise when input parameters are invalid |
 | xxxByIndex | Function work by index                                                                  |
+
+SERVER PERFORMANCE WATCHER
+
+TIME TICKER To check go is running or not
