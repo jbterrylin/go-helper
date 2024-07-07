@@ -2,26 +2,34 @@ package sequencetaskhelper
 
 import (
 	"fmt"
+	"sync"
+
+	ophelper "github.com/jbterrylin/go-helper/opHelper"
 )
 
 type SequenceTask struct {
-	StopWhileMeetErr  bool
-	Ch                chan map[string]interface{}
-	ChStatus          string
-	TaskFunc          func(map[string]interface{}) error
-	RecordSuccessFunc func(map[string]interface{})
-	RecordFailFunc    func(map[string]interface{})
-	DeleteTaskCh      chan func(map[string]interface{}) bool // this is insecure when task is executing, so need to stop execute when end current, then delete
+	StopWhileMeetErr   bool
+	Ch                 chan map[string]interface{}
+	SeqNum             int
+	SeqNumMutex        sync.RWMutex
+	CurrentRunningTask int
+	ChStatus           string
+	TaskFunc           func(map[string]interface{}) error
+	RecordSuccessFunc  func(map[string]interface{})
+	RecordFailFunc     func(map[string]interface{})
+	DeleteTaskCh       chan func(map[string]interface{}) bool // this is insecure when task is executing, so need to stop execute when end current, then delete
 }
 
 func NewSequenceTask(
 	stopWhileMeetErr bool,
+	seqNum int,
 	taskFunc func(map[string]interface{}) error,
 	recordSuccessFunc func(map[string]interface{}),
 	recordFailFunc func(map[string]interface{}),
 ) (sequenceTask SequenceTask) {
 	sequenceTask = SequenceTask{
 		StopWhileMeetErr:  stopWhileMeetErr,
+		SeqNum:            ophelper.Or(seqNum, 1),
 		ChStatus:          END_SEQUENCE,
 		TaskFunc:          taskFunc,
 		RecordSuccessFunc: recordSuccessFunc,
@@ -34,34 +42,60 @@ func NewSequenceTask(
 	return
 }
 
+func (a *SequenceTask) addCurrentRunningTask() {
+	a.SeqNumMutex.Lock()
+	a.CurrentRunningTask++
+	a.SeqNumMutex.Unlock()
+}
+
+func (a *SequenceTask) reduceCurrentRunningTask() {
+	a.SeqNumMutex.Lock()
+	a.CurrentRunningTask--
+	a.SeqNumMutex.Unlock()
+}
+
+func (a *SequenceTask) getCurrentRunningTask() int {
+	a.SeqNumMutex.RLock()
+	defer a.SeqNumMutex.RUnlock()
+	return a.CurrentRunningTask
+}
+
 func (a *SequenceTask) taskHandler() {
-	for {
-		if a.ChStatus == START_SEQUENCE {
-			select {
-			case value, ok := <-a.Ch:
-				if !ok {
-					fmt.Println("Ch closed")
-					return
+	go func() {
+		for {
+			if a.ChStatus == START_SEQUENCE {
+				if a.getCurrentRunningTask() < a.SeqNum {
+					select {
+					case value, ok := <-a.Ch:
+						if !ok {
+							fmt.Println("Ch closed")
+							return
+						}
+						go func(v map[string]interface{}) {
+							a.addCurrentRunningTask()
+							defer a.reduceCurrentRunningTask()
+							err := a.TaskFunc(v)
+							if err != nil {
+								if a.RecordFailFunc != nil {
+									a.RecordFailFunc(v)
+								}
+								if a.StopWhileMeetErr {
+									a.ChStatus = END_SEQUENCE
+								}
+							} else {
+								if a.RecordSuccessFunc != nil {
+									a.RecordSuccessFunc(v)
+								}
+							}
+							a.deleteTaskHandler()
+						}(value)
+					default:
+						continue
+					}
 				}
-				err := a.TaskFunc(value)
-				if err != nil {
-					if a.RecordFailFunc != nil {
-						a.RecordFailFunc(value)
-					}
-					if a.StopWhileMeetErr {
-						a.ChStatus = END_SEQUENCE
-					}
-				} else {
-					if a.RecordSuccessFunc != nil {
-						a.RecordSuccessFunc(value)
-					}
-				}
-				a.deleteTaskHandler()
-			default:
-				fmt.Println("Ch empty")
 			}
 		}
-	}
+	}()
 }
 
 func (a *SequenceTask) AddTask(data map[string]interface{}) {
@@ -77,7 +111,7 @@ func (a *SequenceTask) deleteTaskHandler() {
 		}
 		a.deleteTask(value)
 	default:
-		fmt.Println("DeleteTaskCh empty")
+		return
 	}
 }
 
