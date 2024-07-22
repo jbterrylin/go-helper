@@ -15,9 +15,11 @@ type JWT struct {
 	Audience        string
 }
 
-func NewJWT(signingKey []byte, SigningMethod jwt.SigningMethodHMAC) *JWT {
+func NewJWT(signingKey []byte, SigningMethod jwt.SigningMethodHMAC, bufferDuration, expiredDuration time.Duration) *JWT {
 	return &JWT{
-		SigningKey:    []byte(signingKey),
-		SigningMethod: SigningMethod,
+		SigningKey:      []byte(signingKey),
+		SigningMethod:   SigningMethod,
+		BufferDuration:  bufferDuration,
+		ExpiredDuration: expiredDuration,
 	}
 }
