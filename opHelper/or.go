@@ -13,7 +13,7 @@ func Or[T any](value, elseValue T) T {
 func OrByCond[T any](value, elseValue T, condition func(T) bool) T {
 	// 如果条件回调函数返回 true 或者第一个值为零值，则返回第二个值
 	if condition(value) {
-		return elseValue
+		return value
 	}
-	return value
+	return elseValue
 }
