@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	sprig "github.com/Masterminds/sprig/v3"
 	filehelper "github.com/jbterrylin/go-helper/fileHelper"
 	ophelper "github.com/jbterrylin/go-helper/opHelper"
 )
@@ -16,6 +17,7 @@ type Tpl struct {
 	TempDir             string
 	ReplaceFileName     string
 	fileNamePlaceHolder string
+	funcMap             template.FuncMap
 }
 
 func NewTpl(tplDir, tempDir, replaceFileName string) Tpl {
@@ -24,6 +26,7 @@ func NewTpl(tplDir, tempDir, replaceFileName string) Tpl {
 		TempDir:             ophelper.Or(tempDir, ".\\"+defaultTempDir),
 		ReplaceFileName:     replaceFileName,
 		fileNamePlaceHolder: fileNamePlaceHolder,
+		funcMap:             sprig.FuncMap(),
 	}
 }
 
@@ -31,7 +34,15 @@ func (tpl *Tpl) SetFileNamePlaceHolder(fileNamePlaceHolder string) {
 	tpl.fileNamePlaceHolder = fileNamePlaceHolder
 }
 
-func (tpl *Tpl) PreviewTpl(data map[string]interface{}) (resultMap map[string]string, err error) {
+func (tpl *Tpl) AddFileFuncMap(funcMap template.FuncMap) {
+	newFuncMap := tpl.funcMap
+	for key, val := range funcMap {
+		newFuncMap[key] = val
+	}
+	tpl.funcMap = newFuncMap
+}
+
+func (tpl *Tpl) PreviewTpl(data any) (resultMap map[string]string, err error) {
 	resultMap = make(map[string]string)
 	dataList, _, needMkdir, err := tpl.getNeedList("")
 	if err != nil {
@@ -80,7 +91,7 @@ func (tpl *Tpl) PreviewTpl(data map[string]interface{}) (resultMap map[string]st
 }
 
 // zipFilePath: path with file name e.x: "./code.zip"
-func (tpl *Tpl) CreateTpl(data map[string]interface{}, autoMoveBasePath, zipFilePath string) (err error) {
+func (tpl *Tpl) CreateTpl(data any, autoMoveBasePath, zipFilePath string) (err error) {
 	dataList, fileList, needMkdir, err := tpl.getNeedList(autoMoveBasePath)
 	if err != nil {
 		return err
@@ -144,7 +155,7 @@ func (tpl *Tpl) getNeedList(autoMoveBasePath string) (dataList []tplData, fileLi
 	for _, tplFilePath := range tplFileList {
 		// Parse the template file
 		var tplFile *template.Template
-		tplFile, err = template.ParseFiles(tplFilePath)
+		tplFile, err = template.New(filepath.Base(tplFilePath)).Funcs(tpl.funcMap).ParseFiles(tplFilePath)
 		if err != nil {
 			return
 		}
