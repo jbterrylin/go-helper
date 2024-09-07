@@ -108,15 +108,15 @@ func TestCrossJoin(t *testing.T) {
 				return testCase.DerivedStructs, nil
 			}
 
-			isFulFill := func(mainStruct MainStruct, derivedStruct DerivedStruct) bool {
-				return mainStruct.ID == derivedStruct.MainStructID
+			setDerived := func(mainStruct *MainStruct, derivedStruct DerivedStruct) bool {
+				if mainStruct.ID == derivedStruct.MainStructID {
+					mainStruct.DerivedStruct = derivedStruct
+					return true
+				}
+				return false
 			}
 
-			setDerived := func(mainStruct *MainStruct, derivedStruct DerivedStruct) {
-				mainStruct.DerivedStruct = derivedStruct
-			}
-
-			result, err := gormhelper.CrossJoin(testCase.MainStructs, getDerivedId, getDerivedStructs, isFulFill, setDerived)
+			result, err := gormhelper.CrossJoin(testCase.MainStructs, getDerivedId, getDerivedStructs, setDerived)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
