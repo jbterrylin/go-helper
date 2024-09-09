@@ -20,12 +20,12 @@ func (j *JWT) ParseToken(tokenString string) (claims Claims, err error) {
 		return
 	}
 
-	var ok bool
-	claims, ok = token.Claims.(Claims)
+	tmp, ok := token.Claims.(*Claims)
 	if !ok {
 		err = ErrTokenInvalid
 		return
 	}
 
+	claims = *tmp
 	return
 }
