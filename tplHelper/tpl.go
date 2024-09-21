@@ -91,7 +91,7 @@ func (tpl *Tpl) PreviewTpl(data any) (resultMap map[string]string, err error) {
 }
 
 // zipFilePath: path with file name e.x: "./code.zip"
-func (tpl *Tpl) CreateTpl(data any, autoMoveBasePath, zipFilePath string) (err error) {
+func (tpl *Tpl) CreateTpl(data any, autoMoveBasePath, zipFilePath string, replaceIfExist bool) (err error) {
 	dataList, fileList, needMkdir, err := tpl.getNeedList(autoMoveBasePath)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (tpl *Tpl) CreateTpl(data any, autoMoveBasePath, zipFilePath string) (err e
 			if err != nil {
 				return err
 			}
-			if fileExist {
+			if fileExist && !replaceIfExist {
 				return ErrFileExist
 			}
 		}
