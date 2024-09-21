@@ -61,7 +61,7 @@ func TestCreateTpl(t *testing.T) {
 	defer os.RemoveAll(autoMoveBasePath)
 	defer os.RemoveAll(zipFilePath)
 
-	err := tpl.CreateTpl(data, autoMoveBasePath, zipFilePath)
+	err := tpl.CreateTpl(data, autoMoveBasePath, zipFilePath, true)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
